@@ -1,0 +1,84 @@
+# Django specific
+*.log
+*.pot
+*.pyc
+__pycache__/
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# If you are using PostgreSQL, MySQL, or another database, ignore the database dumps
+*.sql
+*.sqlite3
+
+# Ignore environment variables
+.env
+
+# Ignore the virtual environment directory
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Ignore static and media files
+staticfiles/
+media/
+
+# Ignore django-extensions stuff
+scrapy.dat
+scrapy.db
+
+# Ignore all the compiled Python files
+*.pyc
+
+# Ignore the PyCharm and other IDEs settings directories
+.idea/
+.vscode/
+
+# Ignore files related to packaging and distribution
+*.egg-info/
+.eggs/
+dist/
+build/
+*.egg
+*.manifest
+*.spec
+
+# Ignore other OS specific files
+.DS_Store
+Thumbs.db
+
+# Ignore coverage reports
+htmlcov/
+.tox/
+.coverage
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+
+# Ignore mypy and other type checker outputs
+.mypy_cache/
+.pyre/
+.pytype/
+
+# Ignore pyright
+.pyright/
+
+# Ignore pipenv
+Pipfile.lock
+
+# Ignore celery beat schedule file
+celerybeat-schedule
+
+# Ignore Jupyter notebook checkpoints
+.ipynb_checkpoints
+
+# Ignore pyenv
+.python-version
+
+# Ignore local testing files
+pytest_cache/
+.cache/
