@@ -1,4 +1,5 @@
 import json
+from urllib import request
 from django.http import JsonResponse
 from rest_framework import viewsets, status
 from rest_framework.response import Response
@@ -31,6 +32,7 @@ class UtilisateurViewSet(viewsets.ViewSet):
             try:
                 user = User.objects.get(email=email)
             except User.DoesNotExist:
+                print("L'utilisateur n'existe pas")  # Ajoutez cette ligne
                 return JsonResponse({'status': 'error', 'message': 'Invalid email or password'}, status=400)
 
             # Authentifier en utilisant le username de l'utilisateur
@@ -43,6 +45,8 @@ class UtilisateurViewSet(viewsets.ViewSet):
                 token = jwt_encode_handler(payload)
                 return JsonResponse({'token': token})
             else:
+                print("L'authentification a échoué")  # Ajoutez cette ligne
                 return JsonResponse({'status': 'error', 'message': 'Invalid email or password'}, status=400)
         else:
             return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=405)
+
