@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.contrib.auth.hashers import make_password
 from client.models import Client
+import datetime
 
 
 # Create your models here.
@@ -14,7 +15,12 @@ class Facture(models.Model):
     total_htva = models.DecimalField(max_digits=5, decimal_places=2)
     montant_tva = models.DecimalField(max_digits=5, decimal_places=2)
     send = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)  # Nouveau champ
+
 
     @property
     def lignes_factures(self):
         return self.lignefacture_set.all()
+    
+    def __str__(self):
+        return self.nom

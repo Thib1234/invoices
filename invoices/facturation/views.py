@@ -1,8 +1,23 @@
-# views.py
+import datetime
+from django.http import HttpResponse
+from django.shortcuts import get_object_or_404
 from rest_framework import viewsets
 from facturation.models import Facture
+from ligneFacture.models import LigneFacture
 from facturation.serializers import FactureSerializer
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.decorators import action
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.units import mm
+from django.db.models import Sum
+from django.db.models.functions import TruncDate
+from django.utils import timezone
+
 
 class FactureViewSet(viewsets.ModelViewSet):
     queryset = Facture.objects.all()
@@ -14,3 +29,99 @@ class FactureViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         return self.queryset.filter(user=self.request.user).prefetch_related('lignefacture_set')
+
+    @action(detail=False, methods=['get'])
+    def recent(self, request):
+        recent_invoices = self.get_queryset().order_by('-created_at')[:5]
+        serializer = self.get_serializer(recent_invoices, many=True)
+        return Response(serializer.data)
+    @action(detail=False, methods=['get'])
+    def total_amount_by_month(self, request):
+    # Obtenez le premier et le dernier jour du mois courant
+        now = timezone.now()
+        start_of_month = now.replace(day=1)
+        end_of_month = (start_of_month + timezone.timedelta(days=31)).replace(day=1) - timezone.timedelta(days=1)
+
+        # Filtrer les données pour le mois courant
+        totals_by_day = self.get_queryset().filter(date__range=[start_of_month, end_of_month]).annotate(day=TruncDate('date')).values('day').annotate(total_amount=Sum('montant_total')).order_by('day')
+
+        # Calculer le montant total sur le mois
+        total_amount_month = self.get_queryset().filter(date__range=[start_of_month, end_of_month]).aggregate(total_amount_month=Sum('montant_total'))
+
+        return Response({'totals_by_day': totals_by_day, 'total_amount_month': total_amount_month})
+
+def generate_invoice_pdf(request, facture_id):
+    facture = get_object_or_404(Facture, id=facture_id)
+    lignes = LigneFacture.objects.filter(facture=facture)
+
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="facture_{facture_id}.pdf"'
+
+    doc = SimpleDocTemplate(response, pagesize=A4, rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=18)
+    styles = getSampleStyleSheet()
+    styles.add(ParagraphStyle(name='TableTitle', fontSize=10, leading=14, spaceAfter=6, alignment=1))
+    styles.add(ParagraphStyle(name='TableBody', fontSize=9, leading=12, spaceAfter=6))
+
+    elements = []
+
+    # En-tête de la facture
+    header_data = [
+        ['Entreprise XYZ', '', 'Facture'],
+        ['Adresse Entreprise', '', f'Date : {datetime.date.today()}'],
+        ['Code Postal, Ville', '', f'Facture n° : {facture.id}'],
+        ['Téléphone : 0123456789', '', f'Client : {facture.client.nom}'],
+        ['Email : contact@xyz.com', '', f'Adresse : {facture.client.adresse}'],
+    ]
+    table_header = Table(header_data, colWidths=[70 * mm, 50 * mm, 50 * mm])
+    table_header.setStyle(TableStyle([
+        ('SPAN', (0, 0), (1, 0)),
+        ('SPAN', (0, 1), (1, 1)),
+        ('SPAN', (0, 2), (1, 2)),
+        ('SPAN', (0, 3), (1, 3)),
+        ('SPAN', (0, 4), (1, 4)),
+        ('ALIGN', (0, 0), (2, 0), 'LEFT'),
+        ('ALIGN', (2, 0), (2, 4), 'RIGHT'),
+        ('VALIGN', (0, 0), (2, 0), 'MIDDLE'),
+    ]))
+    elements.append(table_header)
+    elements.append(Spacer(1, 12))
+
+    # Tableau des articles
+    data = [['Description', 'Quantité', 'Prix Unitaire', 'Total']]
+    for ligne in lignes:
+        data.append([ligne.description, ligne.quantite, ligne.prix_unitaire, ligne.total_ligne])
+
+    # Adding totals to the table
+    data.append(['', '', 'Montant Total', "test"])
+    data.append(['', '', 'Total HTVA', "1"])
+    data.append(['', '', 'Montant TVA', "2"])
+
+    table = Table(data, colWidths=[doc.width/2.0, doc.width/6.0, doc.width/6.0, doc.width/6.0])
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ('SPAN', (-2, -3), (-1, -3)),
+        ('SPAN', (-2, -2), (-1, -2)),
+        ('SPAN', (-2, -1), (-1, -1)),
+        ('ALIGN', (-1, -3), (-1, -1), 'RIGHT'),
+    ]))
+    elements.append(table)
+    elements.append(Spacer(1, 12))
+
+    # Conditions de paiement
+    conditions = Paragraph('Conditions de paiement')
+    elements.append(conditions)
+
+    # Génération du document
+    doc.build(elements)
+    return response
+
+# Adding totals to the table
+    # data.append(['', '', 'Montant Total', f"{facture.montant_total:.2f} €"])
+    # data.append(['', '', 'Total HTVA', f"{facture.total_htva:.2f} €"])
+    # data.append(['', '', 'Montant TVA', f"{facture.montant_tva:.2f} €"])
