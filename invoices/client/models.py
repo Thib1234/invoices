@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 from django.contrib.auth.models import User
 from rest_framework import permissions
@@ -8,7 +9,8 @@ class IsOwner(permissions.BasePermission):
 
 # Create your models here.
 class Client(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    # autres champs
     nom = models.CharField(max_length=100)
     adresse = models.CharField(max_length=200)
     code_postal = models.CharField(max_length=10)

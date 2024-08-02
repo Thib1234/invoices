@@ -8,7 +8,6 @@ from facturation.serializers import FactureSerializer
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.decorators import action
-from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib import colors
@@ -17,6 +16,8 @@ from reportlab.lib.units import mm
 from django.db.models import Sum
 from django.db.models.functions import TruncDate
 from django.utils import timezone
+# from django.template.loader import render_to_string
+# from weasyprint import HTML
 
 
 class FactureViewSet(viewsets.ModelViewSet):
@@ -59,12 +60,14 @@ def generate_invoice_pdf(request, facture_id):
 
     doc = SimpleDocTemplate(response, pagesize=A4, rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=18)
     styles = getSampleStyleSheet()
-    styles.add(ParagraphStyle(name='TableTitle', fontSize=10, leading=14, spaceAfter=6, alignment=1))
-    styles.add(ParagraphStyle(name='TableBody', fontSize=9, leading=12, spaceAfter=6))
+    styles.add(ParagraphStyle(name='CustomTitle', fontSize=16, leading=24, spaceAfter=12, alignment=1))
+    styles.add(ParagraphStyle(name='CustomNormal', fontSize=10, leading=14))
+    styles.add(ParagraphStyle(name='CustomTableTitle', fontSize=10, leading=14, spaceAfter=6, alignment=1))
+    styles.add(ParagraphStyle(name='CustomTableBody', fontSize=9, leading=12, spaceAfter=6))
+
 
     elements = []
 
-    # En-tête de la facture
     header_data = [
         ['Entreprise XYZ', '', 'Facture'],
         ['Adresse Entreprise', '', f'Date : {datetime.date.today()}'],
@@ -82,19 +85,32 @@ def generate_invoice_pdf(request, facture_id):
         ('ALIGN', (0, 0), (2, 0), 'LEFT'),
         ('ALIGN', (2, 0), (2, 4), 'RIGHT'),
         ('VALIGN', (0, 0), (2, 0), 'MIDDLE'),
+        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
     ]))
     elements.append(table_header)
-    elements.append(Spacer(1, 12))
+    elements.append(Spacer(1, 50))
 
     # Tableau des articles
     data = [['Description', 'Quantité', 'Prix Unitaire', 'Total']]
-    for ligne in lignes:
-        data.append([ligne.description, ligne.quantite, ligne.prix_unitaire, ligne.total_ligne])
+    montant_total = 0
+    total_htva = 0
+    montant_tva = 0
 
-    # Adding totals to the table
-    data.append(['', '', 'Montant Total', "test"])
-    data.append(['', '', 'Total HTVA', "1"])
-    data.append(['', '', 'Montant TVA', "2"])
+    for ligne in lignes:
+        total_ligne = ligne.quantite * ligne.prix_unitaire
+        data.append([ligne.description, ligne.quantite, f'{ligne.prix_unitaire:.2f}', f'{total_ligne:.2f}'])
+        montant_total += total_ligne
+    for i in range(10):
+        data.append(['', '', '', ''])
+
+    total_htva = montant_total
+    montant_tva = float(total_htva) * 0.21  # Exemple de TVA à 20%
+    total_ttc = float(total_htva) + montant_tva
+
+    data.append(['', '', 'Montant Total', f'{montant_total:.2f}'])
+    data.append(['', '', 'Total HTVA', f'{total_htva:.2f}'])
+    data.append(['', '', 'Montant TVA', f'{montant_tva:.2f}'])
+    data.append(['', '', 'Total TTC', f'{total_ttc:.2f}'])
 
     table = Table(data, colWidths=[doc.width/2.0, doc.width/6.0, doc.width/6.0, doc.width/6.0])
     table.setStyle(TableStyle([
@@ -103,25 +119,27 @@ def generate_invoice_pdf(request, facture_id):
         ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
         ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-        ('GRID', (0, 0), (-1, -1), 1, colors.black),
-        ('SPAN', (-2, -3), (-1, -3)),
-        ('SPAN', (-2, -2), (-1, -2)),
-        ('SPAN', (-2, -1), (-1, -1)),
-        ('ALIGN', (-1, -3), (-1, -1), 'RIGHT'),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+        ('GRID', (0, 0), (-1, -5), 1, colors.black),  # Lignes de grille jusqu'à 5 lignes avant la fin
+        ('GRID', (-2, -4), (-1, -1), 1, colors.black),  # Lignes de grille uniquement pour les colonnes 3 et 4 des dernières lignes
+        ('ALIGN', (-1, 1), (-1, -1), 'RIGHT'),
+        ('LINEABOVE', (2, -4), (-1, -4), 1, colors.black),  # Ligne au-dessus du Montant Total
+        ('LINEABOVE', (2, -3), (-1, -3), 1, colors.black),  # Ligne au-dessus du Total HTVA
+        ('LINEABOVE', (2, -2), (-1, -2), 1, colors.black),  # Ligne au-dessus du Montant TVA
+        ('LINEABOVE', (2, -1), (-1, -1), 1, colors.black),  # Ligne au-dessus du Total TTC
+        ('LINEBELOW', (2, -1), (-1, -1), 1, colors.black),  # Ligne en-dessous du Total TTC
     ]))
     elements.append(table)
     elements.append(Spacer(1, 12))
 
     # Conditions de paiement
-    conditions = Paragraph('Conditions de paiement')
+    conditions = Paragraph('Conditions de paiement : À régler sous 30 jours.', styles['Normal'])
     elements.append(conditions)
+
+    # Remerciements
+    remerciements = Paragraph('Merci pour votre achat !', styles['Normal'])
+    elements.append(remerciements)
 
     # Génération du document
     doc.build(elements)
     return response
-
-# Adding totals to the table
-    # data.append(['', '', 'Montant Total', f"{facture.montant_total:.2f} €"])
-    # data.append(['', '', 'Total HTVA', f"{facture.total_htva:.2f} €"])
-    # data.append(['', '', 'Montant TVA', f"{facture.montant_tva:.2f} €"])

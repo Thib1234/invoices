@@ -1,18 +1,17 @@
 import json
-from urllib import request
 from django.http import JsonResponse
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework_jwt.settings import api_settings
-from django.contrib.auth.models import User
-from django.contrib.auth import authenticate, login
+from django.contrib.auth import authenticate
+from .models import CustomUser  # Assure-toi d'importer ton modèle personnalisé
 from .userSerializer import UtilisateurSerializer
 
 class UtilisateurViewSet(viewsets.ViewSet):
     def create(self, request):
         serializer = UtilisateurSerializer(data=request.data)
         if serializer.is_valid():
-            user = User(
+            user = CustomUser(
                 username=serializer.validated_data['username'],
                 email=serializer.validated_data['email']
             )
@@ -30,9 +29,8 @@ class UtilisateurViewSet(viewsets.ViewSet):
 
             # Récupérer l'utilisateur par email
             try:
-                user = User.objects.get(email=email)
-            except User.DoesNotExist:
-                print("L'utilisateur n'existe pas")  # Ajoutez cette ligne
+                user = CustomUser.objects.get(email=email)
+            except CustomUser.DoesNotExist:
                 return JsonResponse({'status': 'error', 'message': 'Invalid email or password'}, status=400)
 
             # Authentifier en utilisant le username de l'utilisateur
@@ -45,8 +43,6 @@ class UtilisateurViewSet(viewsets.ViewSet):
                 token = jwt_encode_handler(payload)
                 return JsonResponse({'token': token})
             else:
-                print("L'authentification a échoué")  # Ajoutez cette ligne
                 return JsonResponse({'status': 'error', 'message': 'Invalid email or password'}, status=400)
         else:
             return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=405)
-

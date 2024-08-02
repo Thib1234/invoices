@@ -3,11 +3,12 @@ from django.contrib.auth.models import User
 from django.contrib.auth.hashers import make_password
 from client.models import Client
 import datetime
+from django.conf import settings
 
 
 # Create your models here.
 class Facture(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     client = models.ForeignKey(Client, on_delete=models.CASCADE)
     date = models.DateField()
     statut = models.CharField(max_length=20)
