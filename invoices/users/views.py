@@ -13,7 +13,13 @@ class UtilisateurViewSet(viewsets.ViewSet):
         if serializer.is_valid():
             user = CustomUser(
                 username=serializer.validated_data['username'],
-                email=serializer.validated_data['email']
+                email=serializer.validated_data['email'],
+                nom_societe=serializer.validated_data.get('nom_societe', ''),
+                num_bce=serializer.validated_data.get('num_bce', ''),
+                adresse=serializer.validated_data.get('adresse', ''),
+                ville=serializer.validated_data.get('ville', ''),
+                code_postal=serializer.validated_data.get('code_postal', ''),
+                telephone=serializer.validated_data.get('telephone', '')
             )
             user.set_password(serializer.validated_data['password'])
             user.save()

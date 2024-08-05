@@ -11,7 +11,6 @@ class ClientViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def perform_create(self, serializer):
-        # Pas besoin de passer user ici car il est déjà géré dans le serializer
         serializer.save()
 
     def get_queryset(self):

@@ -12,9 +12,9 @@ class Facture(models.Model):
     client = models.ForeignKey(Client, on_delete=models.CASCADE)
     date = models.DateField()
     statut = models.CharField(max_length=20)
-    montant_total = models.DecimalField(max_digits=5, decimal_places=2)
-    total_htva = models.DecimalField(max_digits=5, decimal_places=2)
-    montant_tva = models.DecimalField(max_digits=5, decimal_places=2)
+    montant_total = models.DecimalField(max_digits=15, decimal_places=2)
+    total_htva = models.DecimalField(max_digits=15, decimal_places=2)
+    montant_tva = models.DecimalField(max_digits=15, decimal_places=2)
     send = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)  # Nouveau champ
 
